@@ -2,24 +2,17 @@ extern crate bindgen;
 
 use std::env;
 use std::path::PathBuf;
-use std::process::Command;
 
 fn main() {
-    println!("cargo:include=vendor/rdma-core/build/include");
-    println!("cargo:rustc-link-search=native=vendor/rdma-core/build/lib");
+    // println!("cargo:include=vendor/rdma-core/build/include");
+    println!("cargo:include=/usr/include");
+    // println!("cargo:rustc-link-search=native=vendor/rdma-core/build/lib");
     println!("cargo:rustc-link-lib=ibverbs");
-
-    // build vendor/rdma-core
-    Command::new("bash")
-        .current_dir("vendor/rdma-core/")
-        .args(&["build.sh"])
-        .status()
-        .expect("Failed to build vendor/rdma-core using build.sh");
 
     // generate the bindings
     let bindings = bindgen::Builder::default()
-        .header("vendor/rdma-core/libibverbs/verbs.h")
-        .clang_arg("-Ivendor/rdma-core/build/include/")
+        .header("/usr/include/infiniband/verbs.h")
+        //.clang_arg("-Ivendor/rdma-core/build/include/")
         // https://github.com/servo/rust-bindgen/issues/550
         .blacklist_type("max_align_t")
         .whitelist_function("ibv_.*")

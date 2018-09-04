@@ -710,6 +710,7 @@ impl<'res> QueuePairBuilder<'res> {
             },
             qp_type: self.qp_type,
             sq_sig_all: 0,
+	    xrc_domain: ptr::null::<ffi::ibv_srq>() as *mut _,
         };
 
         let qp = unsafe { ffi::ibv_create_qp(self.pd.pd, &mut attr as *mut _) };
@@ -825,7 +826,7 @@ impl<'res> PreparedQueuePair<'res> {
         // init and associate with port
         let mut attr = ffi::ibv_qp_attr::default();
         attr.qp_state = ffi::ibv_qp_state::IBV_QPS_INIT;
-        attr.qp_access_flags = self.access.0;
+        attr.qp_access_flags = self.access.0 as i32;
         attr.pkey_index = 0;
         attr.port_num = PORT_NUM;
         let mask = ffi::ibv_qp_attr_mask::IBV_QP_STATE | ffi::ibv_qp_attr_mask::IBV_QP_PKEY_INDEX
@@ -1115,11 +1116,12 @@ impl<'res> QueuePair<'res> {
             sg_list: &mut sge as *mut _,
             num_sge: 1,
             opcode: ffi::ibv_wr_opcode::IBV_WR_SEND,
-            send_flags: ffi::ibv_send_flags::IBV_SEND_SIGNALED.0,
+            send_flags: ffi::ibv_send_flags::IBV_SEND_SIGNALED.0 as i32,
+	    imm_data: Default::default(),
             wr: Default::default(),
-            qp_type: Default::default(),
+            // qp_type: Default::default(),
             __bindgen_anon_1: Default::default(),
-            __bindgen_anon_2: Default::default(),
+            bind_mw: Default::default(),
         };
         let mut bad_wr: *mut ffi::ibv_send_wr = ptr::null::<ffi::ibv_send_wr>() as *mut _;
 
