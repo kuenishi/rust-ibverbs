@@ -25,3 +25,6 @@ travis-ci = { repository = "jonhoo/rust-ibverbs" }
 
 [build-dependencies]
 bindgen = "0.36"
+
+[dependencies]
+json = "0.11.13"

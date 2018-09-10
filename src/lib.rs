@@ -74,6 +74,9 @@ use std::ptr;
 
 const PORT_NUM: u8 = 1;
 
+// #[macro_use]
+// extern crate json;
+
 /// Direct access to low-level libverbs FFI.
 #[allow(non_upper_case_globals)]
 #[allow(non_camel_case_types)]
@@ -381,6 +384,7 @@ impl Context {
 
 impl Drop for Context {
     fn drop(&mut self) {
+        println!("Drop context");
         let ok = unsafe { ffi::ibv_close_device(self.ctx) };
         assert_eq!(ok, 0);
     }
@@ -447,6 +451,7 @@ impl<'ctx> CompletionQueue<'ctx> {
 
 impl<'a> Drop for CompletionQueue<'a> {
     fn drop(&mut self) {
+	       println!("Drop cq");
         let errno = unsafe { ffi::ibv_destroy_cq(self.cq) };
         if errno != 0 {
             let e = io::Error::from_raw_os_error(errno);
@@ -521,7 +526,7 @@ impl<'res> QueuePairBuilder<'res> {
 
             max_send_sge: 1,
             max_recv_sge: 1,
-            max_inline_data: 0,
+            max_inline_data: 128,
 
             qp_type,
 
@@ -774,9 +779,37 @@ pub struct PreparedQueuePair<'res> {
 pub struct QueuePairEndpoint {
     num: u32,
     lid: u16,
-    gid: ffi::ibv_gid,
+    gid: ffi::ibv_gid, // 128bit binary; or two u64
 }
 
+/*
+impl QueuePairEndpoint {
+    /// Constructor-like
+    pub fn from_json(js : &str) -> QueuePairEndpoint {
+        let parsed = json::parse(js).unwrap();
+	//	let gid_raw =parsed["gid_raw"].members();
+	let mut gi_raw : [u8: 16];
+	for (i, g) in parsed["gid_raw"].members() {
+	    gid_raw[i] = g;
+	}
+	let h : ffi::ibv_gid;
+	
+	QueuePairEndpoint{
+	    num: parsed["num"].as_u32().unwrap(),
+	    lid: parsed["lid"].as_u16().unwrap(),
+	    gid: h,
+	}
+    }
+    /// JSON Encoder
+    pub fn to_json(&self) -> String {
+        (object! {
+	    "num" => self.num,
+	    "lid" => self.lid,
+	    "gid_raw" => unsafe{ self.gid.raw },
+	}).dump()
+    }
+}
+*/
 impl<'res> PreparedQueuePair<'res> {
     /// Get the network endpoint for this `QueuePair`.
     ///
@@ -923,6 +956,7 @@ pub struct RemoteKey(u32);
 
 impl<T> Drop for MemoryRegion<T> {
     fn drop(&mut self) {
+        println!("drop mr");
         let errno = unsafe { ffi::ibv_dereg_mr(self.mr) };
         if errno != 0 {
             let e = io::Error::from_raw_os_error(errno);
@@ -930,7 +964,6 @@ impl<T> Drop for MemoryRegion<T> {
         }
     }
 }
-
 /// A protection domain for a device's context.
 pub struct ProtectionDomain<'ctx> {
     ctx: &'ctx Context,
@@ -1040,13 +1073,15 @@ impl<'ctx> ProtectionDomain<'ctx> {
 
 impl<'a> Drop for ProtectionDomain<'a> {
     fn drop(&mut self) {
+        println!("Drop pd");
         let errno = unsafe { ffi::ibv_dealloc_pd(self.pd) };
         if errno != 0 {
-            let e = io::Error::from_raw_os_error(errno);
-            panic!("{}", e.description());
+           let e = io::Error::from_raw_os_error(errno);
+           panic!("{}", e.description());
         }
     }
 }
+
 
 /// A fully initialized and ready `QueuePair`.
 ///
@@ -1229,6 +1264,7 @@ impl<'res> QueuePair<'res> {
 
 impl<'a> Drop for QueuePair<'a> {
     fn drop(&mut self) {
+        println!("odrop qp");
         // TODO: ibv_destroy_qp() fails if the QP is attached to a multicast group.
         let errno = unsafe { ffi::ibv_destroy_qp(self.qp) };
         if errno != 0 {
