@@ -74,8 +74,8 @@ use std::ptr;
 
 const PORT_NUM: u8 = 1;
 
-// #[macro_use]
-// extern crate json;
+#[macro_use]
+extern crate json;
 
 /// Direct access to low-level libverbs FFI.
 #[allow(non_upper_case_globals)]
@@ -126,6 +126,7 @@ unsafe impl Send for DeviceList {}
 
 impl Drop for DeviceList {
     fn drop(&mut self) {
+       println!("Drop devicelist");
         unsafe { ffi::ibv_free_device_list(self.0.as_mut_ptr()) };
     }
 }
@@ -782,22 +783,20 @@ pub struct QueuePairEndpoint {
     gid: ffi::ibv_gid, // 128bit binary; or two u64
 }
 
-/*
 impl QueuePairEndpoint {
-    /// Constructor-like
+    /// TODO: make these en/decoders as Trait and cleaner
+    /// Constructor-like decoder
     pub fn from_json(js : &str) -> QueuePairEndpoint {
         let parsed = json::parse(js).unwrap();
-	//	let gid_raw =parsed["gid_raw"].members();
-	let mut gi_raw : [u8: 16];
-	for (i, g) in parsed["gid_raw"].members() {
-	    gid_raw[i] = g;
-	}
-	let h : ffi::ibv_gid;
-	
+	let mut gid = ffi::ibv_gid::default();
+
+        // TODO: handle errors
+	unsafe { gid.global.subnet_prefix = parsed["gid_global_subnet_prefix"].as_u64().unwrap() };
+	unsafe { gid.global.interface_id = parsed["gid_global_interface_id"].as_u64().unwrap() };
 	QueuePairEndpoint{
 	    num: parsed["num"].as_u32().unwrap(),
 	    lid: parsed["lid"].as_u16().unwrap(),
-	    gid: h,
+	    gid: gid,
 	}
     }
     /// JSON Encoder
@@ -805,11 +804,14 @@ impl QueuePairEndpoint {
         (object! {
 	    "num" => self.num,
 	    "lid" => self.lid,
-	    "gid_raw" => unsafe{ self.gid.raw },
+	    "gid_global_subnet_prefix" => unsafe{ self.gid.global.subnet_prefix },
+	    "gid_global_interface_id" => unsafe{ self.gid.global.interface_id },
 	}).dump()
     }
+
+
 }
-*/
+
 impl<'res> PreparedQueuePair<'res> {
     /// Get the network endpoint for this `QueuePair`.
     ///
@@ -1264,7 +1266,7 @@ impl<'res> QueuePair<'res> {
 
 impl<'a> Drop for QueuePair<'a> {
     fn drop(&mut self) {
-        println!("odrop qp");
+        println!("drop qp");
         // TODO: ibv_destroy_qp() fails if the QP is attached to a multicast group.
         let errno = unsafe { ffi::ibv_destroy_qp(self.qp) };
         if errno != 0 {
